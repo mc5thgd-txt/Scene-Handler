@@ -1,6 +1,5 @@
 local sceneHandler = {}
 sceneHandler.Scenes = {}
-sceneHandler.States = {}
 sceneHandler.currentScene = "none"
 
 --[[
@@ -18,15 +17,9 @@ end
 Create states for your scenes and for your states.
 ]]
 function sceneHandler:createStates(sceneName, states)
-    if self.States[string.lower(sceneName)] then
-        return self.States[string.lower(sceneName)]
-    end
-    
     local functions = {}
-    functions.__index = functions
 
     functions.states = {}
-    functions._localStates = {}
     functions._stateFunctions = {}
     functions.currentState = "none"
     
@@ -231,30 +224,6 @@ function sceneHandler:createStates(sceneName, states)
     end
 
     createStates(functions, states)
-
-    --[[
-    Creates a states for your state
-    How cool is that?
-    ]]
-    function functions.createLocalStates(localStates)
-        local lState = setmetatable({}, functions)
-        
-        lState.states = {}
-        lState.currentState = "none"
-        lState._localStates = {}
-        lState._stateFunctions = {}
-
-        createStates(lState, localStates)
-        
-        table.insert(functions._localStates, lState)
-        return lState
-    end
-
-    self.States[string.lower(sceneName)] = {
-        changeState = functions.changeState,
-        getAllValueNames = functions.getAllValueNames,
-        getCurrentState = functions.getCurrentState,
-    }
     return functions
 end
 
@@ -262,9 +231,14 @@ end
 Must be the last line of love.load
 ]]
 function sceneHandler:load()
-    for _, scene in pairs(self.Scenes) do
+    for name, scene in pairs(self.Scenes) do
         if scene.load then
             scene:load()
+        end
+        if self.currentScene ~= string.lower(name) then
+            if scene.unload then
+                scene:unload()
+            end
         end
     end
 end
@@ -309,6 +283,19 @@ function sceneHandler:ui()
 end
 
 --[[
+For custom functions that can be found in love2d's library
+]]
+function sceneHandler:getFunctionName(funcName, ...)
+    for name, scene in pairs(self.Scenes) do
+        if string.lower(self.currentScene) == string.lower(name) then
+            if scene[funcName] then
+                scene[funcName](...)
+            end
+        end
+    end
+end
+
+--[[
 Put this in love.draw over draw and ui
 ]]
 function sceneHandler:background()
@@ -338,13 +325,6 @@ function sceneHandler:changeScene(sceneName)
     self.currentScene = string.lower(sceneName)
     if self.Scenes[self.currentScene].onload then
         self.Scenes[self.currentScene]:onload()
-    end
-end
-
-function sceneHandler:changeSceneAndState(sceneName, stateName)
-    self:changeScene(sceneName)
-    if self.States[self.currentScene] and stateName then
-        self.States[self.currentScene]:changeState(stateName)
     end
 end
 
